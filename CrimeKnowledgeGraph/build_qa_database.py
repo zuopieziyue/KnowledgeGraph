@@ -22,9 +22,71 @@ class ProcessIntoES:
     '''创建ES索引，确定分词类型'''
     def create_mapping(self):
         node_mapping = {
+            "mappings": {
+                self.doc_type: {
+                    "properties": {
+                        "question": {
+                            "type": "text",
+                            "analyzer": "ik_max_word",
+                            "search_analyzer": "ik_smart",
+                            "index": "ture"
+                        },
+                        "answers": {
+                            "type": "text",
+                            "analyzer": "ik_max_word",
+                            "search_analyzer": "ik_smart",
+                            "index": "ture"
+                        },
+                    }
+                }
+            }
         
         }
 
+        if not self.es.indices.exists(self._index):
+            self.es_indices.create(index=self._index, body=node_mapping)
+            print("Create {} mapping successfully!".format(self._index))
+        else:
+            print("index {} already exists!".format(self._index))
+
+    '''批量插入数据'''
+    def insert_data_bulk(self, action_list):
+        success, _ = bulk(self.es, action_list, index=self._index, raise_on_error=True)
+        print("Performed {0} acitons._: {1}".format(success, _))
+
+'''初始化ES，将数据插入到ES数据库当中'''
+def init_ES():
+    pie = ProcessIntoES()
+    # 创建ES的index
+    pie.create_mapping()
+    start_time = time.time()
+    index = 0
+    count = 0
+    action_list = []
+    BULK_COUNT = 1000 #每BULK_COUNT个句子一起插入到ES中
+
+    for line in open(pie.music_file):
+        if not line:
+            continue
+        item = json.loads(line)
+        index += 1
+        action = {
+            "_index": pie._index,
+            "_type":pie.doc_type,
+            "_source": {
+                "question": item['question'],
+                'answers': '\n'.join(ietm['answers']),
+            }
+        }
+        action_list.append(action)
+        if index > BULK_COUNT:
+            pie.insert_data_bulk(action_list=action_list)
+            index = 0
+            count += 1
+            print count
+            action_list = []
+        end_time = time.time()
+        print("Time cost: {0}".format(end_time - start_time))
 
 if __name__ == "__main__":
     # 将数据库插入到elasticsearch当中
