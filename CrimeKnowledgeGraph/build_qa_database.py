@@ -1,8 +1,4 @@
 # -*- coding: utf-8 -*-  
-########################  
-#author:gongyue  
-#date:2019/04/02  
-########################  
 import os
 import time
 
